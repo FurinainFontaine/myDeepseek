@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="用你自己的 DeepSeek API Key 聊天。数据只保存在本机。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.deepseek.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>DeepSeek Chat</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar" aria-label="会话列表">
+      <div class="sidebar-top">
+        <button id="newChatBtn" class="btn primary block" type="button">＋ 新对话</button>
+      </div>
+      <nav id="sessionList" class="session-list" aria-label="历史会话"></nav>
+      <div class="sidebar-bottom">
+        <button id="installBtn" class="btn ghost block" type="button" hidden>安装到桌面</button>
+        <button id="settingsBtn" class="btn ghost block" type="button">设置</button>
+        <div id="keyState" class="key-state"></div>
+      </div>
+    </aside>
+    <div id="overlay" hidden></div>
+
+    <main>
+      <header class="topbar">
+        <button id="menuBtn" class="icon-btn" type="button" aria-label="打开会话列表">☰</button>
+        <div class="brand">DeepSeek Chat</div>
+        <span id="modelBadge" class="badge"></span>
+        <span class="spacer"></span>
+        <button id="themeBtn" class="icon-btn" type="button" aria-label="切换主题">🌙</button>
+        <button id="settingsBtn2" class="icon-btn" type="button" aria-label="设置">⚙</button>
+      </header>
+
+      <div id="messages" class="messages" aria-live="polite"></div>
+
+      <div id="composer" class="composer">
+        <div id="keyNotice" class="notice" hidden>
+          还没有设置 API Key。<button id="noticeSettings" class="link" type="button">去设置</button>
+        </div>
+        <div class="composer-box">
+          <textarea id="input" rows="1" placeholder="给 DeepSeek 发消息…" enterkeyhint="send"></textarea>
+          <div class="composer-actions">
+            <button id="stopBtn" class="btn ghost" type="button" hidden>停止</button>
+            <button id="sendBtn" class="btn primary" type="button">发送</button>
+          </div>
+        </div>
+        <div id="hint" class="hint">Enter 发送 · Shift+Enter 换行 · 内容只保存在本机</div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="settingsDialog" class="dialog">
+    <form id="settingsForm" class="dialog-body">
+      <h2>设置</h2>
+
+      <label class="field">
+        <span>API Key</span>
+        <div class="key-row">
+          <input id="keyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-...">
+          <button id="toggleKey" class="btn ghost" type="button">显示</button>
+        </div>
+        <small>只保存在这台设备的浏览器里，除了 DeepSeek 官方接口不会发送到任何地方。</small>
+      </label>
+
+      <div class="row">
+        <button id="testKeyBtn" class="btn ghost" type="button">测试连接 / 查余额</button>
+        <span id="testKeyStatus" class="test-status"></span>
+      </div>
+
+      <label class="field">
+        <span>模型</span>
+        <select id="modelInput">
+          <option value="deepseek-flash">DeepSeek Flash（V4.1，快，支持看图）</option>
+          <option value="deepseek-v4-pro">DeepSeek V4 Pro（更强，贵一些）</option>
+        </select>
+      </label>
+
+      <label class="field checkbox">
+        <input id="thinkingInput" type="checkbox">
+        <span>启用思考模式</span>
+      </label>
+
+      <label class="field">
+        <span>思考强度</span>
+        <select id="effortInput">
+          <option value="low">low</option>
+          <option value="high">high</option>
+          <option value="max">max</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>系统提示词（可选）</span>
+        <textarea id="systemInput" rows="3" placeholder="例如：你是一个简洁的中文助手。"></textarea>
+      </label>
+
+      <div class="dialog-actions">
+        <button id="clearAllBtn" class="btn danger" type="button">清除本机数据</button>
+        <span class="spacer"></span>
+        <button id="cancelSettingsBtn" class="btn ghost" type="button">取消</button>
+        <button id="saveSettingsBtn" class="btn primary" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

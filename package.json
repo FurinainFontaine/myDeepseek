@@ -1,0 +1,10 @@
+{
+  "name": "deepseek-web-chat",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A tiny static DeepSeek API chat client for desktop and mobile.",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
