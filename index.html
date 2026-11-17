@@ -47,6 +47,7 @@
         <div class="composer-box">
           <textarea id="input" rows="1" placeholder="给 DeepSeek 发消息…" enterkeyhint="send"></textarea>
           <div class="composer-actions">
+            <button id="webBtn" class="btn ghost toggle" type="button" aria-pressed="false" title="联网搜索（仅 DeepSeek Flash）">🌐 <span class="web-label">联网</span></button>
             <button id="stopBtn" class="btn ghost" type="button" hidden>停止</button>
             <button id="sendBtn" class="btn primary" type="button">发送</button>
           </div>
@@ -77,8 +78,8 @@
       <label class="field">
         <span>模型</span>
         <select id="modelInput">
-          <option value="deepseek-flash">DeepSeek Flash（V4.1，快，支持看图）</option>
-          <option value="deepseek-v4-pro">DeepSeek V4 Pro（更强，贵一些）</option>
+          <option value="deepseek-flash">DeepSeek Flash（V4.1，快，支持联网/看图）</option>
+          <option value="deepseek-v4-pro">DeepSeek V4 Pro（更强，不支持联网搜索）</option>
         </select>
       </label>
 

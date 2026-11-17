@@ -6,6 +6,7 @@
 
 - 纯静态：HTML + CSS + 原生 JS，零依赖、零构建
 - 流式输出、思考过程折叠、Markdown / 代码块复制
+- **联网搜索**：一键开关，搜索/抓取都在 DeepSeek 服务端完成，回答带来源列表
 - 多会话，本地 IndexedDB 保存；Key 只存 `localStorage`
 - 手机浏览器可用，可「添加到主屏幕」当 App 用
 - 深色 / 浅色主题、移动端抽屉布局、安全区适配
@@ -56,6 +57,16 @@ git push -u origin main
 
 手机上：用 Chrome / Edge 打开部署后的 HTTPS 地址 → 菜单 → **添加到主屏幕 / 安装应用**。
 
+## 联网搜索
+
+输入框右侧的 🌐 按钮控制联网，状态会记住，下一条消息继续生效。
+
+- 只支持 **`deepseek-flash`**：从 Pro 切到联网会自动换成 Flash；在设置里选 Pro 会自动关闭联网。
+- 打开后声明两个服务端工具：`deepseek_web_search`（搜索）和 `deepseek_read_url`（读取用户消息里的链接）。**搜索和抓取由 DeepSeek 服务端执行，浏览器不直接访问网页。**
+- 思考模式开着时是「深度思考搜索」（多步搜索、打开网页、页内查找）；关掉思考则是快速搜索。
+- 回答下方会显示「已联网检索 · N 个来源」和来源链接；多轮对话会把 `server_tool_calls` 原样回传，保留阅读过的网页上下文。
+- 搜索按次计费：每 1,000 次成功搜索 5 元；一次调用包含几个查询词就按几次算。日常问几句基本是分币级。
+
 ## 安全与隐私
 
 - API Key 保存在浏览器 `localStorage`，只随请求发给 `https://api.deepseek.com`。
@@ -71,6 +82,7 @@ git push -u origin main
 ## 已知限制
 
 - 第一版不支持图片输入、语音、云同步、多设备同步。
+- 联网搜索只支持 `deepseek-flash`；Pro 模型不支持服务端联网工具。
 - 上下文越长越贵；没有自动裁剪，建议长对话适时开新会话。
 - 思考模式下 `temperature` 不生效（API 行为）。
 - GitHub Pages 在国内偶尔慢；首次加载后由 Service Worker 缓存。
@@ -97,6 +109,7 @@ styles.css            全部样式
 app.js                聊天、存储、设置、流式处理
 sse.js                SSE 解析（可单测）
 markdown.js           安全 Markdown 渲染（可单测）
+websearch.js          联网工具的进度与来源整理（可单测）
 sw.js                 离线缓存
 manifest.webmanifest  PWA 清单
 icons/                应用图标

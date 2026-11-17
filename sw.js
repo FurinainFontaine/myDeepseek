@@ -13,6 +13,7 @@ const ASSETS = [
   './app.js',
   './sse.js',
   './markdown.js',
+  './websearch.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

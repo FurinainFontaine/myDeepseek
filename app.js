@@ -1,5 +1,6 @@
 import { SSEParser } from './sse.js';
 import { renderMarkdown } from './markdown.js';
+import { collectSources, describeCall } from './websearch.js';
 
 const API_BASE = 'https://api.deepseek.com';
 const STORAGE = {
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS = {
   effort: 'high',
   systemPrompt: '',
   theme: 'auto',
+  webSearch: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -38,6 +40,7 @@ const els = {
   keyState: $('#keyState'),
   keyNotice: $('#keyNotice'),
   noticeSettings: $('#noticeSettings'),
+  webBtn: $('#webBtn'),
   hint: $('#hint'),
   installBtn: $('#installBtn'),
   dialog: $('#settingsDialog'),
@@ -75,6 +78,7 @@ async function init() {
   applyTheme();
   updateKeyUi();
   updateModelBadge();
+  updateWebButton();
   updateHint();
   // Paint the shell immediately; a slow or unavailable IndexedDB then cannot
   // leave the page blank.
@@ -100,6 +104,8 @@ function loadSettings() {
     if (!(settings.model in MODELS)) settings.model = DEFAULT_SETTINGS.model;
     if (!['low', 'high', 'max'].includes(settings.effort)) settings.effort = DEFAULT_SETTINGS.effort;
     if (!['auto', 'light', 'dark'].includes(settings.theme)) settings.theme = DEFAULT_SETTINGS.theme;
+    settings.webSearch = Boolean(settings.webSearch);
+    if (settings.webSearch && settings.model !== 'deepseek-flash') settings.webSearch = false;
     settings.thinking = Boolean(settings.thinking);
     settings.systemPrompt = typeof settings.systemPrompt === 'string' ? settings.systemPrompt : '';
     return settings;
@@ -125,6 +131,12 @@ function updateKeyUi() {
 
 function updateModelBadge() {
   els.modelBadge.textContent = MODELS[state.settings.model] || state.settings.model;
+}
+
+function updateWebButton() {
+  els.webBtn.classList.toggle('active', Boolean(state.settings.webSearch));
+  els.webBtn.setAttribute('aria-pressed', String(Boolean(state.settings.webSearch)));
+  els.webBtn.title = state.settings.webSearch ? '联网搜索已开启（仅 DeepSeek Flash）' : '开启联网搜索（仅 DeepSeek Flash）';
 }
 
 function updateHint() {
@@ -168,6 +180,11 @@ function closeSettings() {
 
 function saveSettingsFromDialog() {
   state.settings.model = els.modelInput.value in MODELS ? els.modelInput.value : DEFAULT_SETTINGS.model;
+  let notice = '设置已保存';
+  if (state.settings.model !== 'deepseek-flash' && state.settings.webSearch) {
+    state.settings.webSearch = false;
+    notice = '设置已保存；联网搜索已关闭（仅支持 Flash）';
+  }
   state.settings.thinking = els.thinkingInput.checked;
   state.settings.effort = ['low', 'high', 'max'].includes(els.effortInput.value) ? els.effortInput.value : 'high';
   state.settings.systemPrompt = els.systemInput.value.trim();
@@ -176,8 +193,9 @@ function saveSettingsFromDialog() {
   persistKey();
   updateKeyUi();
   updateModelBadge();
+  updateWebButton();
   closeSettings();
-  toast('设置已保存');
+  toast(notice);
 }
 
 async function testConnection() {
@@ -492,7 +510,11 @@ function messageEl(message) {
   avatar.textContent = 'D';
   const name = document.createElement('span');
   name.textContent = 'DeepSeek';
-  head.append(avatar, name);
+  const webBadge = document.createElement('span');
+  webBadge.className = 'web-badge';
+  webBadge.textContent = '联网';
+  webBadge.hidden = true;
+  head.append(avatar, name, webBadge);
 
   const thinking = document.createElement('details');
   thinking.className = 'thinking';
@@ -503,13 +525,21 @@ function messageEl(message) {
   thinkingBody.className = 'thinking-body';
   thinking.append(summary, thinkingBody);
 
+  const webStatus = document.createElement('div');
+  webStatus.className = 'web-status';
+  webStatus.hidden = true;
+
   const md = document.createElement('div');
   md.className = 'md';
+
+  const sourcesBox = document.createElement('div');
+  sourcesBox.className = 'sources';
+  sourcesBox.hidden = true;
 
   const foot = document.createElement('div');
   foot.className = 'msg-foot';
 
-  body.append(head, thinking, md, foot);
+  body.append(head, thinking, webStatus, md, sourcesBox, foot);
   el.append(body);
 
   syncAssistantEl(el, message);
@@ -521,7 +551,10 @@ function syncAssistantEl(el, message) {
   const thinking = el.querySelector('.thinking');
   const summary = el.querySelector('.thinking summary');
   const thinkingBody = el.querySelector('.thinking-body');
+  const webBadge = el.querySelector('.web-badge');
+  const webStatus = el.querySelector('.web-status');
   const md = el.querySelector('.md');
+  const sourcesBox = el.querySelector('.sources');
   const foot = el.querySelector('.msg-foot');
 
   const showThinking = Boolean(message.reasoning) || (message.status === 'streaming' && state.settings.thinking && !message.content);
@@ -536,12 +569,60 @@ function syncAssistantEl(el, message) {
     if (message.status === 'streaming' && thinking.open) thinkingBody.scrollTop = thinkingBody.scrollHeight;
   }
 
+  const sources = collectSources(message.annotations, message.serverToolCalls, message.webCalls);
+  const usedWeb = sources.length > 0 || (Array.isArray(message.webCalls) && message.webCalls.length > 0) || (Array.isArray(message.serverToolCalls) && message.serverToolCalls.length > 0);
+  webBadge.hidden = !usedWeb;
+
+  if (message.status === 'streaming' && message.webPhase) {
+    webStatus.hidden = false;
+    webStatus.textContent = '';
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner';
+    const text = document.createElement('span');
+    text.textContent = message.webPhase;
+    webStatus.append(spinner, text);
+  } else if (message.status !== 'streaming' && sources.length > 0) {
+    webStatus.hidden = false;
+    webStatus.textContent = `已联网检索 · ${sources.length} 个来源`;
+  } else {
+    webStatus.hidden = true;
+  }
+
   if (message.content) {
     md.innerHTML = renderMarkdown(message.content);
   } else if (message.status === 'streaming') {
     md.innerHTML = '<span class="dots">正在生成</span>';
   } else {
     md.textContent = '';
+  }
+
+  sourcesBox.hidden = sources.length === 0;
+  if (sources.length > 0) {
+    const signature = sources.map((source) => source.url).join('\n');
+    if (sourcesBox.dataset.signature !== signature) {
+      sourcesBox.dataset.signature = signature;
+      sourcesBox.textContent = '';
+      const heading = document.createElement('h4');
+      heading.textContent = '来源';
+      const list = document.createElement('ol');
+      for (const source of sources) {
+        const item = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = source.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = source.title || source.url;
+        item.append(link);
+        if (source.siteName && source.siteName !== source.title) {
+          const site = document.createElement('span');
+          site.className = 'site';
+          site.textContent = ` · ${source.siteName}`;
+          item.append(site);
+        }
+        list.append(item);
+      }
+      sourcesBox.append(heading, list);
+    }
   }
 
   foot.textContent = '';
@@ -554,6 +635,8 @@ function syncAssistantEl(el, message) {
   } else if (message.status === 'error') {
     status.className = 'status error';
     status.textContent = message.error || '请求失败';
+  } else if (message.finishReason === 'content_filter') {
+    status.textContent = '内容审核拒绝';
   } else if (message.finishReason === 'length') {
     status.textContent = '已达到输出上限';
   }
@@ -631,6 +714,10 @@ async function sendCurrentInput() {
     reasoning: '',
     status: 'streaming',
     createdAt: Date.now(),
+    webCalls: [],
+    webPhase: '',
+    serverToolCalls: [],
+    annotations: [],
   };
   session.messages.push(assistant);
   session.updatedAt = Date.now();
@@ -647,8 +734,15 @@ function buildMessages(session, assistant) {
   if (state.settings.systemPrompt) messages.push({ role: 'system', content: state.settings.systemPrompt });
   for (const message of session.messages) {
     if (message.id === assistant.id) break;
-    if (message.role === 'user' && message.content) messages.push({ role: 'user', content: message.content });
-    else if (message.role === 'assistant' && message.content) messages.push({ role: 'assistant', content: message.content });
+    if (message.role === 'user' && message.content) {
+      messages.push({ role: 'user', content: message.content });
+    } else if (message.role === 'assistant' && message.content) {
+      const entry = { role: 'assistant', content: message.content };
+      if (Array.isArray(message.serverToolCalls) && message.serverToolCalls.length > 0) {
+        entry.server_tool_calls = message.serverToolCalls;
+      }
+      messages.push(entry);
+    }
   }
   return messages;
 }
@@ -670,6 +764,9 @@ async function streamCompletion(session, assistant) {
       body.reasoning_effort = state.settings.effort;
     } else {
       body.thinking = { type: 'disabled' };
+    }
+    if (state.settings.webSearch && state.settings.model === 'deepseek-flash') {
+      body.tools = [{ type: 'deepseek_web_search' }, { type: 'deepseek_read_url' }];
     }
 
     const response = await fetch(`${API_BASE}/chat/completions`, {
@@ -754,6 +851,10 @@ function handleSseEvent(event, assistant) {
   if (!choice) return false;
   const delta = choice.delta || {};
   let changed = false;
+  if (choice.server_tool_event) {
+    handleServerToolEvent(choice.server_tool_event, assistant);
+    changed = true;
+  }
   if (typeof delta.reasoning_content === 'string' && delta.reasoning_content) {
     assistant.reasoning += delta.reasoning_content;
     changed = true;
@@ -762,9 +863,38 @@ function handleSseEvent(event, assistant) {
     assistant.content += delta.content;
     changed = true;
   }
+  if (Array.isArray(delta.server_tool_calls)) {
+    assistant.serverToolCalls = delta.server_tool_calls;
+    changed = true;
+  }
+  if (Array.isArray(delta.annotations)) {
+    assistant.annotations = delta.annotations;
+    changed = true;
+  }
   if (choice.finish_reason) assistant.finishReason = choice.finish_reason;
   if (changed) scheduleSync(assistant);
   return false;
+}
+
+function handleServerToolEvent(event, assistant) {
+  if (!event || typeof event !== 'object') return;
+  const step = Number.isInteger(event.step) ? event.step : 0;
+  const call = event.call;
+  if (!call) return;
+  const key = `${step}:${call.id || call.index || 'call'}`;
+  if (!Array.isArray(assistant.webCalls)) assistant.webCalls = [];
+
+  if (event.type === 'call_started') {
+    assistant.webCalls = assistant.webCalls.filter((item) => item.key !== key);
+    assistant.webCalls.push({ key, step, ...call, status: call.status || 'running' });
+    assistant.webPhase = describeCall(call);
+  } else if (event.type === 'call_completed') {
+    const existing = assistant.webCalls.find((item) => item.key === key);
+    if (existing) Object.assign(existing, call, { status: call.status || 'completed' });
+    else assistant.webCalls.push({ key, step, ...call, status: call.status || 'completed' });
+    const running = assistant.webCalls.find((item) => item.status === 'running' || item.status === 'searching' || item.status === 'in_progress');
+    assistant.webPhase = running ? describeCall(running) : '';
+  }
 }
 
 async function apiError(response) {
@@ -801,6 +931,10 @@ async function retryMessage(id) {
     reasoning: '',
     status: 'streaming',
     createdAt: Date.now(),
+    webCalls: [],
+    webPhase: '',
+    serverToolCalls: [],
+    annotations: [],
   };
   session.messages.push(assistant);
   session.updatedAt = Date.now();
@@ -867,6 +1001,17 @@ function bindEvents() {
     state.settings.theme = dark ? 'light' : 'dark';
     persistSettings();
     applyTheme();
+  });
+
+  els.webBtn.addEventListener('click', () => {
+    if (!state.settings.webSearch && state.settings.model !== 'deepseek-flash') {
+      state.settings.model = 'deepseek-flash';
+      updateModelBadge();
+      toast('联网搜索需要 Flash 模型，已自动切换');
+    }
+    state.settings.webSearch = !state.settings.webSearch;
+    persistSettings();
+    updateWebButton();
   });
 
   els.toggleKey.addEventListener('click', () => {
