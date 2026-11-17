@@ -2,6 +2,8 @@
 
 一个不用安装、不用后端、数据只留在本机的 DeepSeek API 聊天客户端。填自己的 API Key，直接和 `api.deepseek.com` 通信，绕开官方 C 端的额度限制，按 token 付费。
 
+![移动端截图](screenshot.png)
+
 - 纯静态：HTML + CSS + 原生 JS，零依赖、零构建
 - 流式输出、思考过程折叠、Markdown / 代码块复制
 - 多会话，本地 IndexedDB 保存；Key 只存 `localStorage`
