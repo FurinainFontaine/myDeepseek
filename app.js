@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
   systemPrompt: '',
   theme: 'auto',
   webSearch: false,
+  renderMath: true,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -52,6 +53,7 @@ const els = {
   modelInput: $('#modelInput'),
   thinkingInput: $('#thinkingInput'),
   effortInput: $('#effortInput'),
+  mathInput: $('#mathInput'),
   systemInput: $('#systemInput'),
   clearAllBtn: $('#clearAllBtn'),
   cancelSettingsBtn: $('#cancelSettingsBtn'),
@@ -105,6 +107,7 @@ function loadSettings() {
     if (!['low', 'high', 'max'].includes(settings.effort)) settings.effort = DEFAULT_SETTINGS.effort;
     if (!['auto', 'light', 'dark'].includes(settings.theme)) settings.theme = DEFAULT_SETTINGS.theme;
     settings.webSearch = Boolean(settings.webSearch);
+    settings.renderMath = settings.renderMath !== false;
     if (settings.webSearch && settings.model !== 'deepseek-flash') settings.webSearch = false;
     settings.thinking = Boolean(settings.thinking);
     settings.systemPrompt = typeof settings.systemPrompt === 'string' ? settings.systemPrompt : '';
@@ -166,6 +169,7 @@ function openSettings() {
   els.thinkingInput.checked = Boolean(state.settings.thinking);
   els.effortInput.value = state.settings.effort;
   els.effortInput.disabled = !state.settings.thinking;
+  els.mathInput.checked = state.settings.renderMath !== false;
   els.systemInput.value = state.settings.systemPrompt || '';
   closeSidebar();
   if (typeof els.dialog.showModal === 'function') els.dialog.showModal();
@@ -187,6 +191,7 @@ function saveSettingsFromDialog() {
   }
   state.settings.thinking = els.thinkingInput.checked;
   state.settings.effort = ['low', 'high', 'max'].includes(els.effortInput.value) ? els.effortInput.value : 'high';
+  state.settings.renderMath = els.mathInput.checked;
   state.settings.systemPrompt = els.systemInput.value.trim();
   state.key = els.keyInput.value.trim();
   persistSettings();
@@ -195,6 +200,7 @@ function saveSettingsFromDialog() {
   updateModelBadge();
   updateWebButton();
   closeSettings();
+  if (!state.busy) renderMessages();
   toast(notice);
 }
 
@@ -589,7 +595,7 @@ function syncAssistantEl(el, message) {
   }
 
   if (message.content) {
-    md.innerHTML = renderMarkdown(message.content);
+    md.innerHTML = renderMarkdown(message.content, { math: state.settings.renderMath !== false });
   } else if (message.status === 'streaming') {
     md.innerHTML = '<span class="dots">正在生成</span>';
   } else {

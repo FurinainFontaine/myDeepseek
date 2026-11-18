@@ -11,6 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./vendor/katex/katex.min.css">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -95,6 +96,11 @@
           <option value="high">high</option>
           <option value="max">max</option>
         </select>
+      </label>
+
+      <label class="field checkbox">
+        <input id="mathInput" type="checkbox">
+        <span>渲染 TeX 公式（KaTeX）</span>
       </label>
 
       <label class="field">

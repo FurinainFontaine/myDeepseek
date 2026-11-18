@@ -7,6 +7,7 @@
 - 纯静态：HTML + CSS + 原生 JS，零依赖、零构建
 - 流式输出、思考过程折叠、Markdown / 代码块复制
 - **联网搜索**：一键开关，搜索/抓取都在 DeepSeek 服务端完成，回答带来源列表
+- **TeX 公式**：KaTeX 本地渲染，支持行内/块级/align，设置里可关
 - 多会话，本地 IndexedDB 保存；Key 只存 `localStorage`
 - 手机浏览器可用，可「添加到主屏幕」当 App 用
 - 深色 / 浅色主题、移动端抽屉布局、安全区适配
@@ -67,6 +68,20 @@ git push -u origin main
 - 回答下方会显示「已联网检索 · N 个来源」和来源链接；多轮对话会把 `server_tool_calls` 原样回传，保留阅读过的网页上下文。
 - 搜索按次计费：每 1,000 次成功搜索 5 元；一次调用包含几个查询词就按几次算。日常问几句基本是分币级。
 
+## TeX 公式
+
+公式由**本地打包的 KaTeX** 渲染，不经过 TeX Live，也不上传到任何地方。
+
+- 行内：`$E=mc^2$`、`\(E=mc^2\)`
+- 块级：`$$...$$`、`\[...\]`
+- 环境：`\begin{equation}`、`\begin{align}`、`\begin{gather}`、`\begin{alignat}{n}`
+- 代码块和行内代码里的 `$` 不会被误渲染
+- 流式输出时，未闭合的公式先显示原文，闭合后自动替换
+- 渲染失败时回退显示原始 TeX，不会打断整条消息
+- 设置里可以关闭「渲染 TeX 公式」
+
+限制：KaTeX 不是完整 LaTeX，不支持 TikZ、`\usepackage` 和任意宏包；如果你依赖自定义宏，可以在 `markdown.js` 的 `macros` 选项里补。首次加载会多下载约 600 KB 的 KaTeX JS/CSS，字体按需加载并缓存。
+
 ## 安全与隐私
 
 - API Key 保存在浏览器 `localStorage`，只随请求发给 `https://api.deepseek.com`。
@@ -108,9 +123,10 @@ index.html            页面骨架
 styles.css            全部样式
 app.js                聊天、存储、设置、流式处理
 sse.js                SSE 解析（可单测）
-markdown.js           安全 Markdown 渲染（可单测）
+markdown.js           安全 Markdown + KaTeX 渲染（可单测）
 websearch.js          联网工具的进度与来源整理（可单测）
 sw.js                 离线缓存
+vendor/katex/         KaTeX（MIT，含字体与许可证）
 manifest.webmanifest  PWA 清单
 icons/                应用图标
 tests/                单元测试
@@ -132,3 +148,7 @@ tools/make-icons.py   图标生成脚本
 ```
 
 流式响应里，正文在 `delta.content`，思考过程在 `delta.reasoning_content`，以 `data: [DONE]` 结束。
+
+## 第三方资源
+
+- [KaTeX](https://katex.org/)（MIT License），版权归 Khan Academy 所有，许可证见 `vendor/katex/LICENSE`。
